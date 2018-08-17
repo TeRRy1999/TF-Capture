@@ -20,43 +20,27 @@ import android.widget.ImageView;
 import android.database.Cursor;
 import android.widget.Toast;
 
-import com.google.gson.Gson;
-import com.alibaba.fastjson.JSONArray;
-
+import org.tensorflow.Tensor;
 import org.tensorflow.contrib.android.TensorFlowInferenceInterface;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.util.zip.GZIPOutputStream;
-
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-
 
 public class MainActivity extends AppCompatActivity {
     private int[] intValues;
     private float[] floatValues;
     private float[] hybridValues;
+    private float[][][] placeholder;
 
     private ImageView ivPhoto;
 
@@ -296,6 +280,9 @@ public class MainActivity extends AppCompatActivity {
 
             floatValues[i * 3 + 2] = (val & 0xFF) / (127.5f) - 1f; //blue
         }
+
+//        placeholder = new float[150][150][256];
+//        Tensor t = Tensor.create(placeholder);
 
         // Copy the input data into TensorFlow.
         inferenceInterface.feed(INPUT_NODE, floatValues, 1, res, res, 3);

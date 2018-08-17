@@ -33,4 +33,5 @@ dependencies {
     implementation files('libs/libandroid_tensorflow_inference_java.jar')
     testImplementation 'junit:junit:4.12'
     implementation files('libs/gson-2.8.5.jar')
+    implementation files('libs/fastjson-1.2.49.jar')
 }

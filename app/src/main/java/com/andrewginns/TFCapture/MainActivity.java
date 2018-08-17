@@ -21,17 +21,22 @@ import android.database.Cursor;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
+import com.alibaba.fastjson.JSONArray;
 
-import org.json.JSONArray;
 import org.tensorflow.contrib.android.TensorFlowInferenceInterface;
 
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
@@ -39,6 +44,14 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.util.zip.GZIPOutputStream;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
 
 public class MainActivity extends AppCompatActivity {
     private int[] intValues;
@@ -95,6 +108,33 @@ public class MainActivity extends AppCompatActivity {
         } catch (final Exception ignored) {
         }
     }
+
+//    private static void storeFC(float[] floats, String path) {
+//        FileOutputStream out = null;
+//        try {
+//            out = new FileOutputStream(path);
+//            FileChannel file = out.getChannel();
+//            ByteBuffer buf = file.map(FileChannel.MapMode.READ_WRITE, 0, 4 * floats.length);
+//            for (float i : floats) {
+//                buf.putFloat(i);
+//            }
+//            file.close();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        } finally {
+//            safeClose(out);
+//        }
+//    }
+//
+//    private static void safeClose(OutputStream out) {
+//        try {
+//            if (out != null) {
+//                out.close();
+//            }
+//        } catch (IOException e) {
+//            // do nothing
+//        }
+//    }
 
     public static byte[] gzip(String string) throws IOException {
 //        https://stackoverflow.com/questions/3752359/gzip-in-android
@@ -268,22 +308,95 @@ public class MainActivity extends AppCompatActivity {
         File hybridStore = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
         assert hybridStore != null;
 
-        Gson gson = new Gson();
-
-        try (FileWriter file = new FileWriter(hybridStore + "/" + "hybrid.json")) {
-            String json = gson.toJson(hybridValues);
-            file.write(json);
-            File f = new File(hybridStore + "/" + "hybrid.json");
-            //Print absolute path
-//            System.out.println(f.getAbsolutePath());
-            Log.d("ADebugTag", "\nLocation: " + f.getAbsolutePath());
-            System.out.println("Successfully Copied JSON Object to File...");
-            Log.d("ADebugTag", "\n\"Successfully Copied JSON Object to File...");
-
-            System.out.println("\nJSON generated");
+        String hybridString = java.util.Arrays.toString(hybridValues);
+        try {
+            byte[] compressed = gzip(hybridString);
+            Files.write(Paths.get(hybridStore + "/" + "compressed.gz"), compressed);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+//        float[] result = ((JSONArray) JSONArray.parse(hybridString)).toArray(new float[] {});
+
+//        try{
+//            RandomAccessFile aFile = new RandomAccessFile(hybridStore + "/" + "hybrid.txt", "rw");
+//            FileChannel outChannel = aFile.getChannel();
+//
+//            //one float 4 bytes
+//            ByteBuffer buf = ByteBuffer.allocate(4*150*150*256);
+//            buf.clear();
+//            buf.asFloatBuffer().put(hybridValues);
+//
+//            //while(buf.hasRemaining())
+//            {
+//                outChannel.write(buf);
+//            }
+//
+//            //outChannel.close();
+//            buf.rewind();
+//
+//            float[] out=new float[3];
+//            buf.asFloatBuffer().get(out);
+//
+//            outChannel.close();
+//
+//        }
+//        catch (IOException ex) {
+//            System.err.println(ex.getMessage());
+//        }
+
+//        FileOutputStream fos = null;
+//        DataOutputStream dos = null;
+//
+//        try {
+//            // create file output stream
+//            fos = new FileOutputStream(hybridStore + "/" + "hybrid.txt");
+//
+//            // create data output stream
+//            dos = new DataOutputStream(fos);
+//
+//            // for each byte in the buffer
+//            for (float f:hybridValues) {
+//                // write float to the dos
+//                dos.writeFloat(f);
+//            }
+//
+//            // force bytes to the underlying stream
+//            dos.flush();
+//
+//        } catch(Exception e) {
+//            // if any I/O error occurs
+//            e.printStackTrace();
+//        } finally {
+//            // releases all system resources from the streams
+//            if(dos!=null) try {
+//                is.close();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//            if(fos!=null) try {
+//                    fos.close();
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//        }
+
+//        Gson gson = new Gson();
+//
+//        try (FileWriter file = new FileWriter(hybridStore + "/" + "hybrid.json")) {
+//            String json = gson.toJson(hybridValues);
+//            file.write(json);
+//            File f = new File(hybridStore + "/" + "hybrid.json");
+//            //Print absolute path
+////            System.out.println(f.getAbsolutePath());
+//            Log.d("ADebugTag", "\nLocation: " + f.getAbsolutePath());
+//            System.out.println("Successfully Copied JSON Object to File...");
+//            Log.d("ADebugTag", "\n\"Successfully Copied JSON Object to File...");
+//
+//            System.out.println("\nJSON generated");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
 //        try (FileWriter file = new FileWriter(hybridStore + "/" + "hybrid.json")) {
 //            JSONArray mJSONArray = new JSONArray(Arrays.asList(hybridValues));
@@ -309,6 +422,8 @@ public class MainActivity extends AppCompatActivity {
 //        }
 
         Log.d("ADebugTag", "\nArray Length: " + Integer.toString(hybridValues.length));
+        Log.d("ADebugTag", "\nArray: " + hybridString);
+
 
 //        for (int i = 0; i < intValues.length; ++i) {
 //            intValues[i] =

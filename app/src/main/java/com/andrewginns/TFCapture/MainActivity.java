@@ -20,20 +20,30 @@ import android.widget.ImageView;
 import android.database.Cursor;
 import android.widget.Toast;
 
+import com.google.gson.Gson;
+
+import org.json.JSONArray;
 import org.tensorflow.contrib.android.TensorFlowInferenceInterface;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
+import java.util.zip.GZIPOutputStream;
 
 public class MainActivity extends AppCompatActivity {
     private int[] intValues;
     private float[] floatValues;
+    private float[] hybridValues;
 
     private ImageView ivPhoto;
 
@@ -48,8 +58,8 @@ public class MainActivity extends AppCompatActivity {
 //  Model parameters
     private static final String MODEL_FILE = "file:///android_asset/optimized-graph.pb";
     private static final String INPUT_NODE = "inputA";
-    private static final String OUTPUT_NODE = "a2b_generator/output_image";
-    private static int res = 600;
+    private static final String OUTPUT_NODE = "a2b_generator/Conv_7/Relu:0";
+    private static int res = 200;
 
 //  Permissions control
     private static final int PERMISSIONS_REQUEST = 1;
@@ -84,6 +94,17 @@ public class MainActivity extends AppCompatActivity {
             out.close();
         } catch (final Exception ignored) {
         }
+    }
+
+    public static byte[] gzip(String string) throws IOException {
+//        https://stackoverflow.com/questions/3752359/gzip-in-android
+        ByteArrayOutputStream os = new ByteArrayOutputStream(string.length());
+        GZIPOutputStream gos = new GZIPOutputStream(os);
+        gos.write(string.getBytes());
+        gos.close();
+        byte[] compressed = os.toByteArray();
+        os.close();
+        return compressed;
     }
 
     @Override
@@ -199,6 +220,8 @@ public class MainActivity extends AppCompatActivity {
     private void initTensorFlowAndLoadModel() {
         intValues = new int[res * res];
         floatValues = new float[res * res * 3];
+
+        hybridValues = new float[150 * 150 * 256];
         inferenceInterface = new TensorFlowInferenceInterface(getAssets(), MODEL_FILE);
     }
 
@@ -220,7 +243,8 @@ public class MainActivity extends AppCompatActivity {
         return newBM;
     }
 
-    private Bitmap stylizeImage(Bitmap bitmap) {
+    private void stylizeImage(Bitmap bitmap) {
+
         Bitmap scaledBitmap = scaleBitmap(bitmap, res, res); // desiredSize
         scaledBitmap.getPixels(intValues, 0, scaledBitmap.getWidth(), 0, 0,
                 scaledBitmap.getWidth(), scaledBitmap.getHeight());
@@ -238,18 +262,64 @@ public class MainActivity extends AppCompatActivity {
         // Run the inference call.
         inferenceInterface.run(new String[]{OUTPUT_NODE});
         // Copy the output Tensor back into the output array.
-        inferenceInterface.fetch(OUTPUT_NODE, floatValues);
+        inferenceInterface.fetch(OUTPUT_NODE, hybridValues);
 
-        for (int i = 0; i < intValues.length; ++i) {
-            intValues[i] =
-                    0xFF000000
-                            | (((int) ((floatValues[i * 3] + 1f) * 127.5f)) << 16) //red
-                            | (((int) ((floatValues[i * 3 + 1] + 1f) * 127.5f)) << 8) //green
-                            | ((int) ((floatValues[i * 3 + 2] + 1f) * 127.5f)); //blue
+        // Send the returned array tp the server
+        File hybridStore = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        assert hybridStore != null;
+
+        Gson gson = new Gson();
+
+        try (FileWriter file = new FileWriter(hybridStore + "/" + "hybrid.json")) {
+            String json = gson.toJson(hybridValues);
+            file.write(json);
+            File f = new File(hybridStore + "/" + "hybrid.json");
+            //Print absolute path
+//            System.out.println(f.getAbsolutePath());
+            Log.d("ADebugTag", "\nLocation: " + f.getAbsolutePath());
+            System.out.println("Successfully Copied JSON Object to File...");
+            Log.d("ADebugTag", "\n\"Successfully Copied JSON Object to File...");
+
+            System.out.println("\nJSON generated");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        scaledBitmap.setPixels(intValues, 0, scaledBitmap.getWidth(), 0, 0,
-                scaledBitmap.getWidth(), scaledBitmap.getHeight());
-        return scaledBitmap;
+
+//        try (FileWriter file = new FileWriter(hybridStore + "/" + "hybrid.json")) {
+//            JSONArray mJSONArray = new JSONArray(Arrays.asList(hybridValues));
+//
+//            file.write(mJSONArray.toString());
+//            try {
+//                byte[] compJSON = gzip(mJSONArray.toString());
+//                Files.write(Paths.get(hybridStore + "/" + "compressed.gz"), compJSON);
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//
+//            File f = new File(hybridStore + "/" + "hybrid.json");
+//            //Print absolute path
+////            System.out.println(f.getAbsolutePath());
+//            Log.d("ADebugTag", "\nLocation: " + f.getAbsolutePath());
+//            System.out.println("Successfully Copied JSON Object to File...");
+//            Log.d("ADebugTag", "\n\"Successfully Copied JSON Object to File...");
+//
+//            System.out.println("\nJSON generated");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+
+        Log.d("ADebugTag", "\nArray Length: " + Integer.toString(hybridValues.length));
+
+//        for (int i = 0; i < intValues.length; ++i) {
+//            intValues[i] =
+//                    0xFF000000
+//                            | (((int) ((floatValues[i * 3] + 1f) * 127.5f)) << 16) //red
+//                            | (((int) ((floatValues[i * 3 + 1] + 1f) * 127.5f)) << 8) //green
+//                            | ((int) ((floatValues[i * 3 + 2] + 1f) * 127.5f)); //blue
+//        }
+//        scaledBitmap.setPixels(intValues, 0, scaledBitmap.getWidth(), 0, 0,
+//                scaledBitmap.getWidth(), scaledBitmap.getHeight());
+//        return scaledBitmap;
     }
 
     @Override
@@ -260,8 +330,14 @@ public class MainActivity extends AppCompatActivity {
             try {
                 is = new FileInputStream(photoFile);
                 Bitmap bitmap = BitmapFactory.decodeStream(is);
-                Bitmap bitmap2 = stylizeImage(bitmap);
-                ivPhoto.setImageBitmap(bitmap2);
+                stylizeImage(bitmap);
+
+                Toast.makeText(
+                        MainActivity.this,
+                        "Partial output generated",
+                        Toast.LENGTH_LONG)
+                        .show();
+//                ivPhoto.setImageBitmap(bitmap2);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } finally {
@@ -288,14 +364,14 @@ public class MainActivity extends AppCompatActivity {
             cursor.close();
 
             Bitmap bitmap = BitmapFactory.decodeFile(picturePath);
-            Bitmap bitmap2 = stylizeImage(bitmap);
-            ivPhoto.setImageBitmap(bitmap2);
-
-            saveBitmap(bitmap2, (currentTime + "Processed" +  ".png"));
-            saveBitmap(BitmapFactory.decodeFile(picturePath), (currentTime + "UnProcessed" + ".png"));
+            stylizeImage(bitmap);
+//            ivPhoto.setImageBitmap(bitmap2);
+//
+//            saveBitmap(bitmap2, (currentTime + "Processed" +  ".png"));
+//            saveBitmap(BitmapFactory.decodeFile(picturePath), (currentTime + "UnProcessed" + ".png"));
             Toast.makeText(
                     MainActivity.this,
-                    "Input and Output images saved to: /sdcard/tensorflow/",
+                    "Partial output generated",
                     Toast.LENGTH_LONG)
                     .show();
 

@@ -11,3 +11,14 @@
 /style-transfer/*
 !/style-transfer/*.py
 !/style-transfer/model
+app/.idea/codeStyles/Project.xml
+app/.idea/gradle.xml
+app/.idea/misc.xml
+app/.idea/modules.xml
+app/.idea/runConfigurations.xml
+app/.idea/workspace.xml
+app/gradle/wrapper/gradle-wrapper.jar
+app/gradle/wrapper/gradle-wrapper.properties
+app/gradlew
+app/gradlew.bat
+app/local.properties

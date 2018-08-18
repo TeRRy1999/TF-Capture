@@ -7,32 +7,45 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.format.Formatter;
 import android.util.Log;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.database.Cursor;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.tensorflow.Tensor;
 import org.tensorflow.contrib.android.TensorFlowInferenceInterface;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.Locale;
 import java.util.zip.GZIPOutputStream;
 
@@ -48,38 +61,59 @@ public class MainActivity extends AppCompatActivity {
     private static final int CODE = 1;
     private static final int RESULT_LOAD_IMAGE = 2;
 
+//    static final int SocketServerPORT = 8080;
+//    ServerSocket serverSocket;
+//
+//    ServerSocketThread serverSocketThread;
+//
+//    serverSocketThread = new ServerSocketThread();
+//    serverSocketThread.start();
+
     File photoFile;
 
     private TensorFlowInferenceInterface inferenceInterface;
 
-//  Model parameters
+    //  Model parameters
     private static final String MODEL_FILE = "file:///android_asset/optimized-graph.pb";
     private static final String INPUT_NODE = "inputA";
     private static final String OUTPUT_NODE = "a2b_generator/Conv_7/Relu:0";
     private static int res = 200;
 
-//  Permissions control
+    //  Permissions control
     private static final int PERMISSIONS_REQUEST = 1;
     private static final String PERMISSION_CAMERA = Manifest.permission.CAMERA;
     private static final String PERMISSION_W_STORAGE = Manifest.permission.WRITE_EXTERNAL_STORAGE;
     private static final String PERMISSION_R_STORAGE = Manifest.permission.READ_EXTERNAL_STORAGE;
+    private static final String INTERNET = Manifest.permission.INTERNET;
+    private static final String ACCESS_NETWORK_STATE = Manifest.permission.ACCESS_NETWORK_STATE;
+
 
     private boolean hasPermission() {
-        return checkSelfPermission(PERMISSION_CAMERA) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(PERMISSION_W_STORAGE) == PackageManager.PERMISSION_GRANTED && checkSelfPermission(PERMISSION_R_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        return (checkSelfPermission(PERMISSION_CAMERA) == PackageManager.PERMISSION_GRANTED) &&
+                (checkSelfPermission(PERMISSION_W_STORAGE) == PackageManager.PERMISSION_GRANTED)
+                && (checkSelfPermission(PERMISSION_R_STORAGE) == PackageManager
+                .PERMISSION_GRANTED) && (checkSelfPermission(INTERNET) == PackageManager
+                .PERMISSION_GRANTED) && (checkSelfPermission(ACCESS_NETWORK_STATE) ==
+                PackageManager.PERMISSION_GRANTED);
     }
 
     private void requestPermission() {
-        if (shouldShowRequestPermissionRationale(PERMISSION_CAMERA) || shouldShowRequestPermissionRationale(PERMISSION_W_STORAGE) || shouldShowRequestPermissionRationale(PERMISSION_R_STORAGE)) {
-            Toast.makeText(MainActivity.this, "Camera AND storage permission are required for this app", Toast.LENGTH_LONG).show();
+        if (shouldShowRequestPermissionRationale(PERMISSION_CAMERA) ||
+                shouldShowRequestPermissionRationale(PERMISSION_W_STORAGE) ||
+                shouldShowRequestPermissionRationale(PERMISSION_R_STORAGE)) {
+            Toast.makeText(MainActivity.this, "Camera AND storage permission are required for " +
+                    "this app", Toast.LENGTH_LONG).show();
         }
-        requestPermissions(new String[] {PERMISSION_CAMERA, PERMISSION_W_STORAGE, PERMISSION_R_STORAGE}, PERMISSIONS_REQUEST);
+        requestPermissions(new String[]{PERMISSION_CAMERA, PERMISSION_W_STORAGE,
+                PERMISSION_R_STORAGE}, PERMISSIONS_REQUEST);
     }
 
-//  Image saving
+    //  Image saving
     public static void saveBitmap(final Bitmap bitmap, final String filename) {
 //        String unique = Long.toString(System.currentTimeMillis());
-        final String root =
-                Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "tensorflow";
+        final String root;
+        root = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator +
+                "tensorflow";
         final File myDir = new File(root);
 //        final String myDir = root;
         final File file = new File(myDir, filename);
@@ -120,6 +154,88 @@ public class MainActivity extends AppCompatActivity {
 //        }
 //    }
 
+//    public class ServerSocketThread extends Thread {
+//
+//        @Override
+//        public void run() {
+//            Socket socket = null;
+//
+//            try {
+//                serverSocket = new ServerSocket(SocketServerPORT);
+//
+//                while (true) {
+//                    socket = serverSocket.accept();
+//                    FileTxThread fileTxThread = new FileTxThread(socket);
+//                    fileTxThread.start();
+//                }
+//            } catch (IOException e) {
+//                // TODO Auto-generated catch block
+//                e.printStackTrace();
+//            } finally {
+//                if (socket != null) {
+//                    try {
+//                        socket.close();
+//                    } catch (IOException e) {
+//                        // TODO Auto-generated catch block
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//    public class FileTxThread extends Thread {
+//        Socket socket;
+//
+//        FileTxThread(Socket socket){
+//            this.socket= socket;
+//        }
+//
+//        @Override
+//        public void run() {
+//            File file = new File(
+//                    Environment.getExternalStorageDirectory(),
+//                    "test.txt");
+//
+//            byte[] bytes = new byte[(int) file.length()];
+//            BufferedInputStream bis;
+//            try {
+//                bis = new BufferedInputStream(new FileInputStream(file));
+//                bis.read(bytes, 0, bytes.length);
+//                OutputStream os = socket.getOutputStream();
+//                os.write(bytes, 0, bytes.length);
+//                os.flush();
+//                socket.close();
+//
+//                final String sentMsg = "File sent to: " + socket.getInetAddress();
+//                MainActivity.this.runOnUiThread(new Runnable() {
+//
+//                    @Override
+//                    public void run() {
+//                        Toast.makeText(MainActivity.this,
+//                                sentMsg,
+//                                Toast.LENGTH_LONG).show();
+//                    }});
+//
+//            } catch (FileNotFoundException e) {
+//                // TODO Auto-generated catch block
+//                e.printStackTrace();
+//            } catch (IOException e) {
+//                // TODO Auto-generated catch block
+//                e.printStackTrace();
+//            } finally {
+//                try {
+//                    socket.close();
+//                } catch (IOException e) {
+//                    // TODO Auto-generated catch block
+//                    e.printStackTrace();
+//                }
+//            }
+//
+//        }
+//    }
+
+
     public static byte[] gzip(String string) throws IOException {
 //        https://stackoverflow.com/questions/3752359/gzip-in-android
         ByteArrayOutputStream os = new ByteArrayOutputStream(string.length());
@@ -131,12 +247,52 @@ public class MainActivity extends AppCompatActivity {
         return compressed;
     }
 
+//    private String getIpAddress() {
+//        String ip = "";
+//        try {
+//            Enumeration<NetworkInterface> enumNetworkInterfaces = NetworkInterface
+//                    .getNetworkInterfaces();
+//            while (enumNetworkInterfaces.hasMoreElements()) {
+//                NetworkInterface networkInterface = enumNetworkInterfaces
+//                        .nextElement();
+//                Enumeration<InetAddress> enumInetAddress = networkInterface
+//                        .getInetAddresses();
+//                while (enumInetAddress.hasMoreElements()) {
+//                    InetAddress inetAddress = enumInetAddress.nextElement();
+//
+//                    if (inetAddress.isSiteLocalAddress()) {
+//                        ip += "SiteLocalAddress: "
+//                                + inetAddress.getHostAddress() + "\n";
+//                    }
+//
+//                }
+//
+//            }
+//
+//        } catch (SocketException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//            ip += "Something Wrong! " + e.toString() + "\n";
+//        }
+//
+//        return ip;
+//    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.d("ADebugTag", "\nDefault Resolution: " + Integer.toString(res));
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        TextView textView;
+        textView = (TextView) findViewById(R.id.text_view);
+        WifiManager wifiManager = (WifiManager) getSystemService(WIFI_SERVICE);
+        //noinspection deprecation
+        String ipAddress = Formatter.formatIpAddress(wifiManager.getConnectionInfo().getIpAddress
+                ());
+        textView.setText("Your Device IP Address: " + ipAddress);
+        Log.d("ADebugTag", "\nNetwork Address: " + ipAddress);
 
         ivPhoto = findViewById(R.id.ivPhoto);
 
@@ -147,23 +303,26 @@ public class MainActivity extends AppCompatActivity {
 //        Button onFolder = findViewById(R.id.onFolder);
         Button changeRes = findViewById(R.id.changeRes);
 
-        if (shouldShowRequestPermissionRationale(PERMISSION_CAMERA) || shouldShowRequestPermissionRationale(PERMISSION_W_STORAGE) || shouldShowRequestPermissionRationale(PERMISSION_R_STORAGE)) {
-            Toast.makeText(MainActivity.this, "Camera AND storage permission are required for this app", Toast.LENGTH_LONG).show();
+        if (shouldShowRequestPermissionRationale(PERMISSION_CAMERA) ||
+                shouldShowRequestPermissionRationale(PERMISSION_W_STORAGE) ||
+                shouldShowRequestPermissionRationale(PERMISSION_R_STORAGE)) {
+            Toast.makeText(MainActivity.this, "Camera AND storage permission are required for " +
+                    "this app", Toast.LENGTH_LONG).show();
         }
-        requestPermissions(new String[] {PERMISSION_CAMERA, PERMISSION_W_STORAGE, PERMISSION_R_STORAGE}, PERMISSIONS_REQUEST);
+        requestPermissions(new String[]{PERMISSION_CAMERA, PERMISSION_W_STORAGE,
+                PERMISSION_R_STORAGE}, PERMISSIONS_REQUEST);
 
 //      Click events
         // Check Permissions
 //        checkPerm.setOnClickListener(new View.OnClickListener() {
         checkPerm.setOnClickListener(v -> {
-            if(hasPermission()){
+            if (hasPermission()) {
                 Toast.makeText(
                         MainActivity.this,
                         "Permissions already granted",
                         Toast.LENGTH_LONG)
                         .show();
-            }
-            else {
+            } else {
                 requestPermission();
             }
         });
@@ -222,7 +381,6 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
-
     }
 
     private File createImageFile() throws IOException {
@@ -274,7 +432,7 @@ public class MainActivity extends AppCompatActivity {
                 scaledBitmap.getWidth(), scaledBitmap.getHeight());
         for (int i = 0; i < intValues.length; ++i) {
             final int val = intValues[i];
-            floatValues[i * 3] = ((val >> 16) & 0xFF)  / (127.5f) - 1f ; //red
+            floatValues[i * 3] = ((val >> 16) & 0xFF) / (127.5f) - 1f; //red
 
             floatValues[i * 3 + 1] = ((val >> 8) & 0xFF) / (127.5f) - 1f; //green
 
@@ -291,7 +449,7 @@ public class MainActivity extends AppCompatActivity {
         // Copy the output Tensor back into the output array.
         inferenceInterface.fetch(OUTPUT_NODE, hybridValues);
 
-        // Send the returned array tp the server
+        // Send the returned array to the server
         File hybridStore = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
         assert hybridStore != null;
 
@@ -407,7 +565,6 @@ public class MainActivity extends AppCompatActivity {
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
-
         Log.d("ADebugTag", "\nArray Length: " + Integer.toString(hybridValues.length));
         Log.d("ADebugTag", "\nArray: " + hybridString);
 
@@ -422,6 +579,9 @@ public class MainActivity extends AppCompatActivity {
 //        scaledBitmap.setPixels(intValues, 0, scaledBitmap.getWidth(), 0, 0,
 //                scaledBitmap.getWidth(), scaledBitmap.getHeight());
 //        return scaledBitmap;
+
+        //
+
     }
 
     @Override
@@ -451,9 +611,9 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        if (requestCode == RESULT_LOAD_IMAGE){
+        if (requestCode == RESULT_LOAD_IMAGE) {
             Uri selectedImage = data.getData();
-            String[] filePathColumn = { MediaStore.Images.Media.DATA };
+            String[] filePathColumn = {MediaStore.Images.Media.DATA};
 
             assert selectedImage != null;
             Cursor cursor = getContentResolver().query(selectedImage,
@@ -470,7 +630,8 @@ public class MainActivity extends AppCompatActivity {
 //            ivPhoto.setImageBitmap(bitmap2);
 //
 //            saveBitmap(bitmap2, (currentTime + "Processed" +  ".png"));
-//            saveBitmap(BitmapFactory.decodeFile(picturePath), (currentTime + "UnProcessed" + ".png"));
+//            saveBitmap(BitmapFactory.decodeFile(picturePath), (currentTime + "UnProcessed" + "
+// .png"));
             Toast.makeText(
                     MainActivity.this,
                     "Partial output generated",
@@ -502,7 +663,8 @@ public class MainActivity extends AppCompatActivity {
 //    public static List<Bucket> getImageBuckets(Context mContext){
 //        List<Bucket> buckets = new ArrayList<>();
 //        Uri uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-//        String [] projection = {MediaStore.Images.Media.BUCKET_DISPLAY_NAME, MediaStore.Images.Media.DATA};
+//        String [] projection = {MediaStore.Images.Media.BUCKET_DISPLAY_NAME, MediaStore.Images
+// .Media.DATA};
 //
 //        Cursor cursor = mContext.getContentResolver().query(uri, projection, null, null, null);
 //        if(cursor != null){

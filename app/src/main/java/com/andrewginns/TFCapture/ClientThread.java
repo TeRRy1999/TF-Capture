@@ -15,25 +15,26 @@ class ClientThread implements Runnable {
     private static final int SERVER_PORT = 7000;
     private static final String SERVER_IP = "192.168.0.11";
     private static final String TAG = "ClientThread";
-    private Socket socket;
+//    private Socket socket;
 
     public ClientThread() {
-        try {
-            InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
-            Log.d(TAG, "created");
-            socket = new Socket(serverAddress, SERVER_PORT);
-        } catch (IOException e) {
-            Log.e(TAG, "Error: " + e);
-        }
+        //            InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
+        Log.d(TAG, "Created new thread");
+//            socket = new Socket(serverAddress, SERVER_PORT);
     }
 
     @Override
     public void run() {
     }
 
-    void sendData(byte[] data, int msgLength) {
+    static void sendData(byte[] data, int msgLength) {
 
         try {
+            Socket socket;
+            InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
+            Log.d(TAG, "created");
+            socket = new Socket(serverAddress, SERVER_PORT);
+
             OutputStream out = socket.getOutputStream();
             InputStream in = socket.getInputStream();
 

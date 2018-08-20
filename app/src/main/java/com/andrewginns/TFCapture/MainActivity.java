@@ -49,10 +49,10 @@ import java.util.Locale;
 import java.util.zip.GZIPOutputStream;
 
 public class MainActivity extends AppCompatActivity {
-//    private Socket socket;
+    private Socket socket;
 
-//    private static final int SERVERPORT = 7000;
-//    private static final String SERVER_IP = "192.168.0.11";
+    private static final int SERVERPORT = 7000;
+    private static final String SERVER_IP = "192.168.0.11";
 
     private int[] intValues;
     private float[] floatValues;
@@ -145,6 +145,34 @@ public class MainActivity extends AppCompatActivity {
         }
         requestPermissions(new String[]{PERMISSION_CAMERA, PERMISSION_W_STORAGE,
                 PERMISSION_R_STORAGE}, PERMISSIONS_REQUEST);
+
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    InetAddress serverAddr = InetAddress.getByName(SERVER_IP);
+
+                    socket = new Socket(serverAddr, SERVERPORT);
+                    Log.d("ADebugTag", "\nConnected to: " + SERVER_IP + ":" + SERVERPORT);
+
+                    try {
+                        String str = "Hello, World!";
+                        PrintWriter out = new PrintWriter(new BufferedWriter(
+                                new OutputStreamWriter(socket.getOutputStream())),
+                                true);
+                        out.println(str);
+                        Log.d("ADebugTag", "\nMessage Sent: " + str);
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+
+        thread.start();
 
 //      Click events
         // Check Permissions
@@ -328,15 +356,54 @@ public class MainActivity extends AppCompatActivity {
             Bitmap bitmap = BitmapFactory.decodeFile(picturePath);
             byte[] dataOut = stylizeImage(bitmap);
             int msgLength = dataOut.length;
+            Log.d("ADebugTag", "\nArray length: " + msgLength);
 
-            ClientThread send = new ClientThread();
 
-            Thread t = new Thread(send);
-            t.start();
+            // SENDING DATA VIA TCP //
+            Thread send = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Socket socket;
+                        InetAddress serverAddress = InetAddress.getByName(SERVER_IP);
+                        Log.d("ADebugTag", "created");
+                        socket = new Socket(serverAddress, SERVERPORT);
+
+                        OutputStream out = socket.getOutputStream();
+                        InputStream in = socket.getInputStream();
+
+                        DataOutputStream dos = new DataOutputStream(out);
+//                        dos.writeInt(msgLength);
+//                        dos.write(dataOut);
+                        if (msgLength > 0) {
+                            dos.write(dataOut, 0, msgLength);
+                        }
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                        Log.d("ADebugTag", "\nReader:" + reader.readLine());
+                        Log.d("ADebugTag", "\nData Sent");
+                        Log.d("ADebugTag", "\nArray length sent: " + msgLength);
+
+                    } catch (Exception e) {
+                        Log.d("ADebugTag", "\nERROR");
+                    }
+                }
+            });
+
+            send.start();
+
+//            ClientThread t = new ClientThread();
+//            new Thread(t).start();
+//            t.sendData(dataOut, msgLength);
+
+//            ClientThread.sendData(dataOut, msgLength);
+//            send.sendData(dataOut, msgLength);
+//            ClientThread t = new ClientThread(dataOut, msgLength);
+//            new Thread(t).start();
+//            Thread t = new Thread(send);
+//            t.start();
+//            t.sendData(dataOut, msgLength);
 //            Thread t = new Thread(new ClientThread(dataOut, msgLength));
 //            t.start();
-
-            send.sendData(dataOut, msgLength);
 
         }
         Toast.makeText(

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TF-Capture</string>
+    <string name="app_name">TF-Hybrid</string>
     <string name="button">Capture</string>
     <string name="from_gallery">Load</string>
     <string name="check_permissions">Check Permissions</string>

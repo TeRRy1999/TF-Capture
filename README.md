@@ -1,4 +1,4 @@
-# CycleGAN-Capture
+# TF-Capture
 
 Inference of a trained CycleGAN network for single images
 * Load images from the gallery
